@@ -1,0 +1,50 @@
+#include <stdio.h> /*Includes library for basic input-output functions*/
+
+int main() {
+    int initial_balance = 1000;    /*Initialise current amount*/
+    int balance = initial_balance; /*Initialise balance amount*/
+    int num_transactions;          /*Data type for num_transactions*/
+
+    printf("Enter the number of transactions: ");  /*Asking user to enter number of transactions*/
+    scanf("%d", &num_transactions);                /*Assigning user value to num_transactions*/
+
+    int transactions[num_transactions];            /*Array named transactions with size of num_transactions, int datatype*/
+    int tobeprocessed[num_transactions];           /*Array named tobeprocessed with size of num_transactions, int datatype*/
+    int tobeprocessed_count = 0;                   /*Initialise tobeprocessed amount to be zero*/
+    
+    printf("Enter the transactions (positive for deposits, negative for withdrawals):\n");  /*Get transaction values from the user*/
+    for (int i = 0; i < num_transactions; i++) {    /*Keep incrementing i value until it is less than num_transactions*/
+        printf("Transaction %d: ", i + 1);          /*Prints statement*/
+        scanf("%d", &transactions[i]);              /*Stores the above value in the index position i of array transactions*/
+    }
+
+    printf("\nStarting balance: %d AED\n", balance);    /*Prints starting message*/
+
+    for (int i = 0; i < num_transactions; i++) { /*Process each transaction*/
+        int transaction = transactions[i];    /*Puts the transaction value at i position into the variable transaction*/
+
+        if (transaction < 0 && (-transaction) > balance) {   /*checks if amount entered is -ve and if the amount is greater than balance*/
+            printf("Transaction %d AED is invalid due to insufficient balance.\n", transaction); /*prints relevant message*/
+            tobeprocessed[tobeprocessed_count++] = transaction;  /*Value is stored in tobeprocessed array, in the next incremented position*/
+        } else {
+            balance += transaction; /*if amount is positive, transaction is added to balance*/
+            printf("Processed transaction: %d AED, New balance: %d AED\n", transaction, balance); /*Prints relevant message*/
+
+            if (balance == 0) { /*If balance reaches zero*/
+                printf("Balance has reached 0 AED. No further transactions will be processed.\n"); /*Prints relevant message*/
+                for (int j = i + 1; j < num_transactions; j++) {  /*next transaction onwards, j will keep incrementing until criteria is met*/
+                    tobeprocessed[tobeprocessed_count++] = transactions[j]; /*stores all the transactions in tobeprocessed array*/
+                }
+                break; /*breaks the loop*/
+            }
+        }
+    }
+    printf("\nFinal balance: %d AED\n", balance);   /*prints final balance*/
+    printf("Unprocessed transactions: ");           /*prints the statement*/
+    for (int i = 0; i < tobeprocessed_count; i++) { /*loops through each element, in the tobeprocessed array*/
+        printf("%d ", tobeprocessed[i]);            /*Prints each element*/
+    }
+    printf("\n");  /*prints new line*/
+
+    return 0; /*returns false*/
+}
