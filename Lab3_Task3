@@ -1,0 +1,273 @@
+#include <stdio.h>     // Include standard I/O library for printing to the console
+#include <string.h>    // Include string manipulation functions (e.g., strcpy, strcmp)
+#include <stdlib.h>    // Include standard library for memory allocation and general utility functions
+
+#define NUM_TEAMS 10   // Define a constant for the maximum number of teams
+#define SQUAD_SIZE 5   // Define a constant for the maximum number of players in each team
+
+typedef struct {   // Struct to hold a player's birth date
+    int day;       // Day of the player's birth
+    int month;     // Month of the player's birth
+    int year;      // Year of the player's birth
+} age;
+
+typedef struct {       // Struct for player attributes
+    char name[30];     // Player's full name (up to 30 characters)
+    int kitnumber;     // Player's unique kit number (range from 1 to 99)
+    char club[40];     // Player's club name (up to 40 characters)
+    age dob;           // Player's date of birth (struct of type 'age')
+    char position[30]; // Player's position (e.g., Midfielder, Forward)
+} player_t;
+
+typedef struct {                    // Struct for team attributes
+    char name[40];                  // Team's name (up to 40 characters)
+    player_t players[SQUAD_SIZE];   // Array to hold players in the team (maximum of 5)
+    int currentsize;                // Current number of players in the team
+} Team;
+
+Team teams[NUM_TEAMS];        // Array to hold enrolled teams (maximum of 10 teams)
+int num_teams = 0;            // Counter for the number of enrolled teams
+
+// Function prototypes for the various functions that will be defined later
+void display_menu();            // Function to display the main menu
+void enroll_club();             // Function to enroll a club
+void add_player();              // Function to add a player to a team
+void search_update();           // Function to search for and update player information
+void display_club_statistics(); // Function to display statistics of a club
+void handle_error(char msg[]);  // Function to handle errors and display messages
+
+// Main function that drives the program
+int main() {
+    while (1) {           // Infinite loop to display the menu and process user input
+        display_menu();   // Call function to display the main menu
+    }
+    return 0;             // Return 0 to indicate the program executed successfully
+}
+
+void display_menu() {                                   // Function to display the main menu
+    int choice;                                         // Declare a variable to store the user's menu choice
+    printf("\n=== Sports Club Management Menu ===\n");  // Display the header for the menu
+    printf("1. Enroll a new club\n");                   // Option 1: Enroll a new club
+    printf("2. Add a player to a club\n");              // Option 2: Add a player to a club
+    printf("3. Search and update player\n");            // Option 3: Search and update player details
+    printf("4. Display club statistics\n");             // Option 4: Display statistics of clubs
+    printf("Other: Exit\n");                            // Option to exit the program
+    printf("Enter your choice: ");                      // Prompt the user to enter their choice
+    scanf("%d", &choice);                               // Read the user's choice and store it in the 'choice' variable
+
+    // Conditional block to execute the appropriate function based on the user's choice
+    if (choice == 1) {                                      // If the user chooses 1
+        enroll_club();                                      // Call the function to enroll a new club
+    } else if (choice == 2) {                               // If the user chooses 2
+        add_player();                                       // Call the function to add a player to a club
+    } else if (choice == 3) {                               // If the user chooses 3
+        search_update();                                    // Call the function to search and update player details
+    } else if (choice == 4) {                               // If the user chooses 4
+        display_club_statistics();                          // Call the function to display club statistics
+    } else {                                                // If the user chooses any other number
+        printf("Exiting program.\n");                       // Display an exit message
+        exit(0);                                            // Exit the program
+    }
+}
+
+void add_player() {                                     // Function to add a player to a club
+    int club_index;                                     // Declare variable to store the index of the selected club
+    // List available clubs
+    printf("Available clubs:\n");                       // Display a message indicating the available clubs
+    for (int i = 0; i < num_teams; i++) {               // Loop through each club
+        printf("%d. %s\n", i + 1, teams[i].name);       // Display the club number and name
+    }
+    printf("Select a club by number: ");                // Prompt the user to select a club
+    scanf("%d", &club_index);                           // Read the user's input for the selected club
+    getchar();                                          // Consume the newline character left by scanf
+
+    // Validate the club selection
+    if (club_index < 1 || club_index > num_teams) {     // Check if the input is valid
+        handle_error("Invalid club selection.");        // Display an error if the input is invalid
+        return;                                         // Exit the function
+    }
+    club_index--;                                       // Adjust for 0-based array indexing (as user input starts from 1)
+    // Check if the club's squad is full
+    if (teams[club_index].currentsize >= SQUAD_SIZE) {  // If the current number of players is equal to or exceeds the limit
+        handle_error("Club squad is full.");            // Display an error if the squad is full
+        return;                                         // Exit the function
+    }
+
+    // Add new player
+    player_t new_player;                                     // Declare a new player variable to store the player's details
+    printf("Enter player's full name: ");                    // Get the player's full name
+    fgets(new_player.name, sizeof(new_player.name), stdin);  // Read the player's name
+    // Remove trailing newline if present
+    size_t len = strlen(new_player.name);                    // Get the length of the input string
+    if (len > 0 && new_player.name[len - 1] == '\n') {       // Check if the last character is a newline
+        new_player.name[len - 1] = '\0';                     // Remove the newline character
+    }
+
+    // Check if the player's name is empty
+    if (strcmp(new_player.name, "") == 0) {                     // Compare the name to an empty string
+        handle_error("Player name cannot be empty.");           // Display an error if the name is empty
+        return;                                                 // Exit the function
+    }
+    
+    printf("Enter kit number (1-99): ");                       // Get the player's kit number
+    scanf("%d", &new_player.kitnumber);                        // Read the player's kit number
+    getchar();                                                 // Consume the newline character left by scanf
+
+    printf("Enter player's birth date (dd mm yyyy): ");                                   // Get the player's birth date
+    scanf("%d %d %d", &new_player.dob.day, &new_player.dob.month, &new_player.dob.year);  // Read the birth date
+    getchar();                                                                            // Consume the newline character left by scanf
+   
+    printf("Enter position: ");                                      // Get the player's position
+    fgets(new_player.position, sizeof(new_player.position), stdin);  // Read the player's position
+    // Remove trailing newline if present
+    len = strlen(new_player.position);                               // Get the length of the input string
+    if (len > 0 && new_player.position[len - 1] == '\n') {           // Check if the last character is a newline
+        new_player.position[len - 1] = '\0';                         // Remove the newline character
+    }
+
+    // Check if the position is empty
+    if (strcmp(new_player.position, "") == 0) {                     // Compare the position to an empty string
+        handle_error("Position cannot be empty.");                  // Display an error if the position is empty
+        return;                                                     // Exit the function
+    }
+
+    // Check for duplicates in the squad (same name or kit number)
+    for (int i = 0; i < teams[club_index].currentsize; i++) {                   // Loop through the players in the club's squad
+        if (strcmp(teams[club_index].players[i].name, new_player.name) == 0 ||  // Check for duplicate name or kit number
+            teams[club_index].players[i].kitnumber == new_player.kitnumber) {   // Assignment of new data to the current data
+            handle_error("Duplicate player name or kit number found.");         // Display an error if duplicate is found
+            return;                                                             // Exit the function
+        }
+    }
+
+    // Add the player to the club's squad
+    teams[club_index].players[teams[club_index].currentsize] = new_player;     // Add the new player at the end of the squad
+    teams[club_index].currentsize++;                                           // Increment the number of players in the squad
+    printf("Player added successfully.\n");                                    // Confirm the player has been added
+}
+
+void search_update() {  
+    char search_name[30];  // Declare a character array to store the player's name or kit number for searching
+    int found = 0;  // Initialize a flag variable 'found' to track if the player is found during the search
+
+    printf("Enter player name (case-insensitive) or kit number to search: ");  
+    scanf("%s", search_name);  // Get user input for the player name or kit number to search for
+
+    for (int i = 0; i < num_teams; i++) {  // Loop through all teams
+        for (int j = 0; j < teams[i].currentsize; j++) {  // Loop through players in the current team
+            // Check if the name matches (case-insensitive) or the kit number matches the search input
+            if (strcasecmp(teams[i].players[j].name, search_name) == 0 ||  
+                teams[i].players[j].kitnumber == atoi(search_name)) {  
+
+                printf("Player found in club: %s\n", teams[i].name);  // Print the club name where the player is found
+                printf("Name: %s, Kit: %d, Position: %s, DOB: %02d-%02d-%04d\n",  
+                       teams[i].players[j].name, teams[i].players[j].kitnumber,  // Print the player's details
+                       teams[i].players[j].position,  
+                       teams[i].players[j].dob.day, teams[i].players[j].dob.month, teams[i].players[j].dob.year);  
+
+                int update_choice;  // Declare a variable to store the user's choice for what to update
+                printf("What would you like to update?\n");  // Ask the user what they want to update
+                printf("1. Name\n");  
+                printf("2. Kit Number\n");  
+                printf("3. Date of Birth\n");  
+                printf("4. Position\n");  
+                printf("Enter your choice: ");  
+                scanf("%d", &update_choice);  // Get the user's choice on which attribute to update
+
+                switch (update_choice) {  // Check the user's choice using a switch-case structure
+                    case 1:  // If the user chooses to update the name
+                        printf("Enter new name: ");  
+                        scanf("%s", teams[i].players[j].name);  // Get the new name from the user and update it
+                        break;
+
+                    case 2:  // If the user chooses to update the kit number
+                        printf("Enter new kit number (1-99): ");  
+                        scanf("%d", &teams[i].players[j].kitnumber);  // Get the new kit number and update it
+                        break;
+
+                    case 3:  // If the user chooses to update the date of birth
+                        printf("Enter new birth date (dd mm yyyy): ");  
+                        scanf("%d %d %d",  
+                              &teams[i].players[j].dob.day,  // Get the new day of birth
+                              &teams[i].players[j].dob.month,  // Get the new month of birth
+                              &teams[i].players[j].dob.year);  // Get the new year of birth
+                        break;
+
+                    case 4:  // If the user chooses to update the position
+                        printf("Enter new position: ");  
+                        scanf("%s", teams[i].players[j].position);  // Get the new position from the user and update it
+                        break;
+
+                    default:  // If the user enters an invalid choice
+                        printf("Invalid choice.\n");  
+                        return;  // Exit the function as the choice was invalid
+                }
+
+                printf("Update successful.\n");  // Notify the user that the update was successful
+                found = 1;  // Set 'found' to 1 to indicate the player has been updated
+                return;  // Exit the function after the update
+            }
+        }
+    }
+
+    if (!found) {  // If no player was found during the search
+        printf("Player not found.\n");  // Notify the user that the player was not found
+    }
+}
+
+void display_club_statistics() {                                   // Function to display club statistics
+    for (int i = 0; i < num_teams; i++) {                          // Loop through all the teams
+        printf("\nClub: %s\n", teams[i].name);                     // Print the club's name
+        printf("Number of players: %d\n", teams[i].currentsize);   // Print the number of players in the club
+ 
+        int total_age = 0;                                  // Initialize a variable to store the total age of players in the club
+        for (int j = 0; j < teams[i].currentsize; j++) {    // Loop through each player in the team
+            int age = 2024 - teams[i].players[j].dob.year;  // Calculate the player's age, assuming the current year is 2024
+            total_age += age;                               // Add the player's age to the total age
+            // Print player details: name, kit number, position, and calculated age
+            printf("Player: %s, Kit: %d, Position: %s, Age: %d\n", 
+                teams[i].players[j].name, 
+                teams[i].players[j].kitnumber, 
+                teams[i].players[j].position, 
+                age);
+        }
+        // Calculate and print the average age if there are players in the club
+        if (teams[i].currentsize > 0) {                                              // Check if the club has players
+            printf("Average age: %.2f\n", (float)total_age / teams[i].currentsize);  // Calculate and print the average age
+        } else {
+            printf("No players enrolled.\n");                                        // If there are no players, print a message indicating so
+        }
+    }
+}
+
+// Function to handle errors
+void handle_error(char msg[]) {
+    printf("Error: %s\n", msg);  // Print the error message
+}
+
+void enroll_club() {                                // Function to enroll a new sports club
+    if (num_teams >= NUM_TEAMS) {                   // Check if the number of teams has reached the predefined limit
+        handle_error("Maximum number of teams reached."); // Display an error if no more teams can be added
+        return;                                     // Exit the function
+    }
+
+    printf("Enter the name of the new club: ");     // Prompt the user to enter the club's name
+    getchar();                                      // Clear any leftover newline character from previous input
+    fgets(teams[num_teams].name, sizeof(teams[num_teams].name), stdin); // Read the club's name from user input
+
+    // Remove newline character if present
+    size_t len = strlen(teams[num_teams].name);     // Get the length of the entered club name
+    if (len > 0 && teams[num_teams].name[len - 1] == '\n') { // Check if the last character is a newline
+        teams[num_teams].name[len - 1] = '\0';      // Replace the newline character with a null terminator
+    }
+
+    // Validate the entered club name
+    if (strcmp(teams[num_teams].name, "") == 0) {   // Check if the name is an empty string
+        handle_error("Club name cannot be empty."); // Display an error if the name is invalid
+        return;                                     // Exit the function
+    }
+
+    teams[num_teams].currentsize = 0;               // Initialize the current size of the team's player list to zero
+    num_teams++;                                    // Increment the total count of registered teams
+    printf("Club enrolled successfully.\n");       // Confirm that the club has been successfully registered
+}
