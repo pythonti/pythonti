@@ -93,3 +93,4 @@ int main(int argc, char **argv) {
  /*to close the robot and stimulation*/
   wb_robot_cleanup();
   return 0; /*to end the main funtion*/
+}
