@@ -1,0 +1,218 @@
+#include <webots/robot.h>                // Include the Webots API for robot functionality
+#include <webots/motor.h>                // Include the Webots API for controlling motors
+#include <webots/distance_sensor.h>      // Include the Webots API for distance sensors
+#include <webots/position_sensor.h>      // Include the Webots API for position sensors
+#include <webots/light_sensor.h>         // Include the Webots API for light sensors
+#include <webots/gps.h>                  // Include the Webots API for GPS
+#include <stdio.h>                       // Include standard input-output library for printf
+#include <math.h>                        // Include math library for mathematical calculations
+#include <stdbool.h>                     // Include the standard boolean library for true/false
+#include <float.h>                       // Include library for handling float data types
+
+#define TIME_STEP 100                    // Time step in milliseconds for Webots simulation
+#define MAX_SPEED 6.28                   // Maximum speed of the motors
+#define NUM_SENSORS 8                    // Total number of distance and light sensors
+#define GPS_THRESHOLD 0.05               // Threshold distance to consider robot at a location
+#define ONE_MINUTE 60000                 // Duration of one minute in milliseconds
+#define MAX_POSITIONS 9000               // Maximum number of GPS positions to store
+
+// Declare the GPS device globally
+WbDeviceTag gps;
+
+// Structure to hold x and y coordinates
+struct {
+    double x;                            // x-coordinate of a position
+    double y;                            // y-coordinate of a position
+} start_position, lowest_light_position; // Starting and lowest light positions
+
+// Arrays for storing light values and corresponding positions
+double light_values[MAX_POSITIONS];      // Array to store light intensity values
+struct {
+    double x;                            // x-coordinate of a recorded position
+    double y;                            // y-coordinate of a recorded position
+} positions[MAX_POSITIONS];              // Array to store positions corresponding to light values
+int position_count = 0;                  // Counter for stored positions
+double min_light_value = DBL_MAX;        // Initialize minimum light value to the highest possible double
+
+// Delay function to pause execution for a specified time
+void delay(int milliseconds) {
+    int start_time = wb_robot_get_time() * 1000; // Record current time in milliseconds
+    while (wb_robot_step(wb_robot_get_basic_time_step()) != -1) { // Continue simulation steps
+        int current_time = wb_robot_get_time() * 1000;            // Get updated time
+        if (current_time - start_time >= milliseconds) {          // Break when delay is complete
+            break;                                                // Exit loop after delay
+        }
+    }
+}
+
+// Function to check if robot has returned to its start position
+static int is_back_at_start() {
+    const double *gps_values = wb_gps_get_values(gps);            // Get current GPS coordinates
+    double dx = gps_values[0] - start_position.x;                 // Difference in x-coordinates
+    double dy = gps_values[1] - start_position.y;                 // Difference in y-coordinates
+    double distance = sqrt(dx * dx + dy * dy);                    // Calculate Euclidean distance
+    return distance < GPS_THRESHOLD;                              // Return true if within threshold
+}
+
+// Function to record the initial GPS position
+static void record_start_position() {
+    const double *gps_values = wb_gps_get_values(gps);            // Get current GPS coordinates
+    start_position.x = gps_values[0];                             // Store x-coordinate as start position
+    start_position.y = gps_values[1];                             // Store y-coordinate as start position
+    printf("Start position recorded: (%.2f, %.2f)\n",             // Print start position for debugging
+           start_position.x, start_position.y);
+}
+
+int main(int argc, char **argv) {
+    wb_robot_init();                                              // Initialize the robot
+  
+    // Initialize the left and right motors
+    WbDeviceTag left_motor = wb_robot_get_device("left wheel motor"); // Get left motor device
+    WbDeviceTag right_motor = wb_robot_get_device("right wheel motor"); // Get right motor device
+    WbDeviceTag dist_sensors[NUM_SENSORS];                        // Array to hold distance sensors
+    WbDeviceTag light_sensors[NUM_SENSORS];                       // Array to hold light sensors
+
+    gps = wb_robot_get_device("gps");                             // Get the GPS device
+    wb_gps_enable(gps, TIME_STEP);                                // Enable GPS with the specified time step
+  
+    // Initialize distance sensors for wall detection
+    WbDeviceTag ps5 = wb_robot_get_device("ps5");                 // Left side distance sensor
+    WbDeviceTag ps7 = wb_robot_get_device("ps7");                 // Front distance sensor
+    wb_distance_sensor_enable(ps5, TIME_STEP);                    // Enable left sensor
+    wb_distance_sensor_enable(ps7, TIME_STEP);                    // Enable front sensor
+  
+    // Initialize wheel position sensors
+    WbDeviceTag left_pos_sensor = wb_robot_get_device("left wheel sensor"); // Get left wheel position sensor
+    WbDeviceTag right_pos_sensor = wb_robot_get_device("right wheel sensor"); // Get right wheel position sensor
+    wb_position_sensor_enable(left_pos_sensor, TIME_STEP);        // Enable left wheel position sensor
+    wb_position_sensor_enable(right_pos_sensor, TIME_STEP);       // Enable right wheel position sensor
+  
+    wb_motor_set_position(left_motor, INFINITY);                  // Set left motor for velocity control
+    wb_motor_set_position(right_motor, INFINITY);                 // Set right motor for velocity control
+    wb_motor_set_velocity(left_motor, 0.0);                       // Start left motor with velocity 0
+    wb_motor_set_velocity(right_motor, 0.0);                      // Start right motor with velocity 0
+  
+    wb_robot_step(TIME_STEP);                                     // Perform an initial simulation step
+  
+    record_start_position();                                      // Record the starting GPS position
+  
+    bool one_minute_passed = false;                               // Flag to track if one minute elapsed
+    bool lowest_light_found = false;                              // Flag to indicate lowest light position found
+    int start_time = wb_robot_get_time() * 1000;                  // Get the current simulation time in milliseconds
+    char sensor_name[5];                                          // Temporary string for sensor names
+  
+    // Initialize all distance and light sensors dynamically
+    for (int i = 0; i < NUM_SENSORS; i++) {
+        sprintf(sensor_name, "ps%d", i);                          // Generate name for distance sensor
+        dist_sensors[i] = wb_robot_get_device(sensor_name);       // Get distance sensor by name
+        wb_distance_sensor_enable(dist_sensors[i], TIME_STEP);    // Enable distance sensor
+
+        sprintf(sensor_name, "ls%d", i);                          // Generate name for light sensor
+        light_sensors[i] = wb_robot_get_device(sensor_name);      // Get light sensor by name
+        wb_light_sensor_enable(light_sensors[i], TIME_STEP);      // Enable light sensor
+    }
+  
+    // Main simulation loop
+    while (wb_robot_step(TIME_STEP) != -1) {
+        double dist_sum = 0.0, light_sum = 0.0;                   // Reset sum variables for sensor readings
+        int current_time = wb_robot_get_time() * 1000;            // Get current simulation time
+
+        if (one_minute_passed && !lowest_light_found && is_back_at_start()) {
+            // If one minute has passed and robot is back at start
+            for (int i = 0; i < position_count; i++) {
+                if (light_values[i] < min_light_value) {
+                    min_light_value = light_values[i];            // Update minimum light value
+                    lowest_light_position.x = positions[i].x;     // Update lowest light position x
+                    lowest_light_position.y = positions[i].y;     // Update lowest light position y
+                }
+            }
+            printf("Maximum light intensity: %.2f\n", min_light_value); // Print minimum light value
+            lowest_light_found = true;                            // Set flag to true
+        }
+
+        if (lowest_light_found) {
+            // Navigate to position with lowest light value
+            const double *gps_values = wb_gps_get_values(gps);    // Get current GPS coordinates
+            double dx = lowest_light_position.x - gps_values[0];  // Difference in x-coordinates
+            double dy = lowest_light_position.y - gps_values[1];  // Difference in y-coordinates
+            double distance = sqrt(dx*dx + dy*dy);                // Calculate distance to target
+
+            if (distance < GPS_THRESHOLD) {
+                wb_motor_set_velocity(left_motor, 0.0);           // Stop left motor
+                wb_motor_set_velocity(right_motor, 0.0);          // Stop right motor
+                printf("Reached highest light position: (%.2f, %.2f)\n", 
+                       lowest_light_position.x, lowest_light_position.y);
+                break;                                            // Exit the loop
+            }
+        }
+
+        // Update sensor readings and calculate averages
+        for (int i = 0; i < NUM_SENSORS; i++) { 
+    // Loop through all the distance and light sensors.
+
+    double dist_value = wb_distance_sensor_get_value(dist_sensors[i]); 
+    // This gives the distance to the nearest obstacle detected by i sensor.
+
+    double light_value = wb_light_sensor_get_value(light_sensors[i]);   
+    // This gives the light intensity detected by i sensor.
+
+    dist_sum += dist_value; 
+    // Add the current distance sensor value to `dist_sum` & accumulates the readings from all distance sensors in this cycle.
+
+    light_sum += light_value; 
+    // Add the current light sensor value to `light_sum` & accumulates the readings from all light sensors in this cycle.
+}
+
+if (position_count < MAX_POSITIONS) { 
+    // Check if the `position_count` (number of recorded positions) is less than `MAX_POSITIONS`.
+    // This ensures we don't exceed the storage capacity of the `positions` and `light_values` arrays.
+
+    const double *gps_values = wb_gps_get_values(gps); 
+    // Get the current GPS coordinates of the robot as an array. 
+    // `gps_values[0]` is the x-coordinate, and `gps_values[1]` is the y-coordinate.
+
+    positions[position_count].x = gps_values[0]; 
+    // Store the x-coordinate of the robot's current position in the `positions` array at index `position_count`.
+
+    positions[position_count].y = gps_values[1]; 
+    // Store the y-coordinate of the robot's current position in the `positions` array at index `position_count`.
+
+    light_values[position_count] = light_sum / NUM_SENSORS; 
+    // Calculate the average light intensity by dividing `light_sum` by `NUM_SENSORS`.
+    // Store this average light value in the `light_values` array at index `position_count`.
+
+    position_count++; 
+    // Increment the `position_count` to indicate that a new position and its corresponding light value have been recorded.
+}
+
+
+        // Wall-following behavior logic
+        bool left_wall = wb_distance_sensor_get_value(ps5) > 80; // Check if there's a wall on the left
+        bool front_wall = wb_distance_sensor_get_value(ps7) > 80; // Check if there's a wall in front
+
+        double left_speed, right_speed;                         // Variables for motor speeds
+
+        if (front_wall) {
+            left_speed = MAX_SPEED;                             // Turn right by setting left motor to max speed
+            right_speed = -MAX_SPEED;                           // Reverse the right motor
+        } else if (left_wall) {
+            left_speed = MAX_SPEED;                             // Move forward while maintaining the wall on the left
+            right_speed = MAX_SPEED;
+        } else {
+            left_speed = MAX_SPEED / 8;                         // Adjust speeds to move forward when no wall is detected
+            right_speed = MAX_SPEED;
+        }
+
+        wb_motor_set_velocity(left_motor, left_speed);          // Set the velocity for the left motor
+        wb_motor_set_velocity(right_motor, right_speed);        // Set the velocity for the right motor
+
+        // Check if one minute has passed since the start
+        if (!one_minute_passed && (current_time - start_time >= ONE_MINUTE)) {
+            printf("One minute has passed. Starting to check for return to start position.\n");
+            one_minute_passed = true;                           // Set the flag indicating one minute has elapsed
+        }
+    }
+
+    wb_robot_cleanup();                                         // Clean up resources and end simulation
+    return 0;                                                   // Exit the program
+}
