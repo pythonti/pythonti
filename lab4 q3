@@ -1,0 +1,38 @@
+#include <iostream>   // For input/output operations
+#include <iomanip>    // For controlling output formatting
+using namespace std;
+
+// Function to print a floating-point number with specific formatting
+void printFormatted(float value, int width, int precision) {
+    // Print the value in fixed-point notation, with specified width and precision
+    cout << fixed << setw(width) << setprecision(precision) << value << endl;
+}
+
+// Template function to update two values based on specific rules
+template <typename T>
+void scaleAndUpdate(T& first, T& second, T multiplier = 10) {
+    T tempFirst = first;  // Store the original value of the first variable
+    first = (first + second) * multiplier;  // Update first to the scaled sum
+    second = (tempFirst - second) * multiplier;  // Update second to the scaled difference
+}
+
+int main() {
+    float num1, num2;  // Variables to store user input
+
+    // Prompt the user to enter two numbers
+    cout << "Enter two real numbers: ";
+    cin >> num1 >> num2;  // Read the input values
+
+    // Print the original values in formatted style
+    printFormatted(num1, 7, 3);  // Print num1 with width=7, precision=3
+    printFormatted(num2, 7, 3);  // Print num2 with width=7, precision=3
+
+    // Update the values using the scaling function
+    scaleAndUpdate(num1, num2);  // Call the function to modify num1 and num2
+
+    // Print the updated values in the same formatted style
+    printFormatted(num1, 7, 3);  // Print updated num1 with width=7, precision=3
+    printFormatted(num2, 7, 3);  // Print updated num2 with width=7, precision=3
+
+    return 0;  // End the program
+}
